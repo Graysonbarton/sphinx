@@ -1,14 +1,17 @@
 """Test logging util."""
 
+from __future__ import annotations
+
 import codecs
 import os
-import os.path
+from pathlib import Path
 
 import pytest
 from docutils import nodes
 
-from sphinx.util import logging, osutil
-from sphinx.util.console import colorize, strip_colors
+from sphinx._cli.util.errors import strip_escape_sequences
+from sphinx.util import logging
+from sphinx.util.console import colorize
 from sphinx.util.logging import is_suppressed_warning, prefixed_warnings
 from sphinx.util.parallel import ParallelTasks
 
@@ -113,7 +116,7 @@ def test_once_warning_log(app):
     logger.warning('message: %d', 1, once=True)
     logger.warning('message: %d', 2, once=True)
 
-    warnings = strip_colors(app.warning.getvalue())
+    warnings = strip_escape_sequences(app.warning.getvalue())
     assert 'WARNING: message: 1\nWARNING: message: 2\n' in warnings
 
 
@@ -269,7 +272,7 @@ def test_pending_warnings(app):
         assert 'WARNING: message3' not in app.warning.getvalue()
 
     # actually logged as ordered
-    warnings = strip_colors(app.warning.getvalue())
+    warnings = strip_escape_sequences(app.warning.getvalue())
     assert 'WARNING: message2\nWARNING: message3' in warnings
 
 
@@ -360,15 +363,15 @@ def test_get_node_location_abspath():
     # Ensure that node locations are reported as an absolute path,
     # even if the source attribute is a relative path.
 
-    relative_filename = os.path.join('relative', 'path.txt')
-    absolute_filename = osutil.abspath(relative_filename)
+    relative_filename = Path('relative', 'path.txt')
+    absolute_filename = relative_filename.resolve()
 
     n = nodes.Node()
-    n.source = relative_filename
+    n.source = str(relative_filename)
 
     location = logging.get_node_location(n)
 
-    assert location == absolute_filename + ':'
+    assert location == f'{absolute_filename}:'
 
 
 @pytest.mark.sphinx('html', testroot='root', confoverrides={'show_warning_types': True})
@@ -379,7 +382,7 @@ def test_show_warning_types(app):
     logger.warning('message3', type='test')
     logger.warning('message4', type='test', subtype='logging')
 
-    warnings = strip_colors(app.warning.getvalue()).splitlines()
+    warnings = strip_escape_sequences(app.warning.getvalue()).splitlines()
 
     assert warnings == [
         'WARNING: message2',
